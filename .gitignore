@@ -1,0 +1,10 @@
+data/
+*.tif
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.npz
+__pycache__/
+.ipynb_checkpoints/
