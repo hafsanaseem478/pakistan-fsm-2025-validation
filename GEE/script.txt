@@ -1,0 +1,17 @@
+var pakistan = ee.FeatureCollection("FAO/GAUL/2015/level0")
+    .filter(ee.Filter.eq('ADM0_NAME', 'Pakistan'));
+
+var jrc = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
+    .select('seasonality')
+    .gte(10)  // wet 10+ months per year = permanent
+    .clip(pakistan);
+
+Export.image.toDrive({
+  image: jrc,
+  description: 'jrc_permanent_water_pakistan',
+  region: pakistan.geometry(),
+  scale: 30,
+  crs: 'EPSG:3395',
+  maxPixels: 4e9,
+  fileFormat: 'GeoTIFF'
+});
