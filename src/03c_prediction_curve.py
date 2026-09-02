@@ -1,171 +1,66 @@
-from pathlib import Path
-
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
+cum_area_all =  [0, 12.84, 21.15, 30.81, 43.26, 100]
+cum_flood_all = [0, 56.60, 76.13, 86.63, 93.30, 100]
 
-INTERIM = Path("data/interim")
-OUTPUTS = Path("outputs")
+cum_area_out =  [0, 7.90, 14.77, 23.85, 36.75, 100]
+cum_flood_out = [0, 36.14, 59.00, 75.52, 86.27, 100]
 
-FIGURES = OUTPUTS / "figures"
-TABLES = OUTPUTS / "tables"
+fig, ax = plt.subplots(figsize=(6.5, 5.5), dpi=200)
 
-FIGURES.mkdir(parents=True, exist_ok=True)
-TABLES.mkdir(parents=True, exist_ok=True)
-
-
-# Load counts from 03b_frequency_ratio.py
-#
-# columns:
-# 0 = all valid
-# 1 = all flooded
-# 2 = valid inside historical inventory
-# 3 = flooded inside
-# 4 = valid outside historical inventory
-# 5 = flooded outside
-
-counts = np.load(
-    INTERIM / "fr_counts.npy"
+ax.plot(
+    cum_area_all, cum_flood_all,
+    'o-', color='#4393c3',
+    label='All 2025 flooding (AUC = 0.830)',
+    linewidth=1.8, markersize=5
 )
 
-classes = [5, 4, 3, 2, 1]
-
-
-def make_curve(valid_col, flood_col, name):
-
-    total_valid = counts[classes, valid_col].sum()
-    total_flood = counts[classes, flood_col].sum()
-
-    rows = []
-
-    cumulative_area = 0
-    cumulative_flood = 0
-
-    # Start curve at origin
-    x = [0]
-    y = [0]
-
-    for c in classes:
-
-        area_share = (
-            counts[c, valid_col]
-            / total_valid
-            * 100
-        )
-
-        flood_share = (
-            counts[c, flood_col]
-            / total_flood
-            * 100
-        )
-
-        cumulative_area += area_share
-        cumulative_flood += flood_share
-
-        x.append(cumulative_area)
-        y.append(cumulative_flood)
-
-        rows.append({
-            "FSM_class": c,
-            "area_share_pct": area_share,
-            "flood_share_pct": flood_share,
-            "cumulative_area_pct": cumulative_area,
-            "cumulative_flood_pct": cumulative_flood,
-        })
-
-    df = pd.DataFrame(rows)
-
-    # Area under cumulative capture curve
-    # NOTE: this is NOT ROC-AUC.
-    auc = np.trapezoid(
-        np.array(y) / 100,
-        np.array(x) / 100
-    )
-
-    df.to_csv(
-        TABLES / f"{name}_capture_curve.csv",
-        index=False
-    )
-
-    return np.array(x), np.array(y), auc, df
-
-
-# Overall
-
-x_all, y_all, auc_all, df_all = make_curve(
-    valid_col=0,
-    flood_col=1,
-    name="overall"
+ax.plot(
+    cum_area_out, cum_flood_out,
+    's-', color='#d73027',
+    label='Outside historical inventory (AUC = 0.801)',
+    linewidth=1.8, markersize=5
 )
 
-
-# Outside historical inventory
-
-x_out, y_out, auc_out, df_out = make_curve(
-    valid_col=4,
-    flood_col=5,
-    name="historical_nonoverlap"
+ax.plot(
+    [0, 100], [0, 100],
+    '--', color='grey',
+    linewidth=1,
+    label='Random (AUC = 0.500)'
 )
 
+ax.set_title('Cumulative Capture of the 2025 Flood Footprint', fontsize=13, fontweight='bold')
+ax.set_xlabel('Cumulative area (%)')
+ax.set_ylabel('Cumulative flood captured (%)')
 
-# Plot
+ax.set_xlim(0, 100)
+ax.set_ylim(0, 100)
+ax.set_aspect('equal')
 
-plt.figure(figsize=(7, 6))
+ax.grid(True, linestyle=':', linewidth=0.7, alpha=0.7)
+ax.set_axisbelow(True)
 
-plt.plot(
-    x_all,
-    y_all,
-    marker="o",
-    label="All valid 2025 flood"
+# annotate key points
+ax.annotate(
+    '21.15% area\ncaptures 76.13% flood',
+    xy=(21.15, 76.13),
+    xytext=(28, 68),
+    fontsize=8,
+    arrowprops=dict(arrowstyle='->', lw=0.8, color='black')
 )
 
-plt.plot(
-    x_out,
-    y_out,
-    marker="o",
-    label="Historical-inventory non-overlap"
+ax.annotate(
+    '14.77% area\ncaptures 59.00% flood',
+    xy=(14.77, 59.00),
+    xytext=(38, 45),
+    fontsize=8,
+    arrowprops=dict(arrowstyle='->', lw=0.8, color='black')
 )
 
-# Random / proportional reference
-plt.plot(
-    [0, 100],
-    [0, 100],
-    linestyle="--",
-    label="Proportional reference"
-)
+ax.legend(fontsize=8, loc='lower right', frameon=False)
 
-plt.xlabel("Cumulative share of valid analysis area (%)")
-plt.ylabel("Cumulative share of 2025 flood captured (%)")
-
-plt.title(
-    "Cumulative Flood Capture by FSM Susceptibility"
-)
-
-plt.legend()
 plt.tight_layout()
+plt.savefig('outputs/figures/figure3_prediction_curve.png', dpi=300, bbox_inches='tight')
+plt.show()
 
-plt.savefig(
-    FIGURES / "cumulative_flood_capture.png",
-    dpi=300
-)
-
-plt.close()
-
-
-print("=" * 65)
-print("CUMULATIVE FLOOD CAPTURE")
-print("=" * 65)
-
-print("\nOVERALL")
-print(df_all.to_string(index=False))
-print(f"\nCapture-curve AUC: {auc_all:.3f}")
-
-print("\nHISTORICAL-INVENTORY NON-OVERLAP")
-print(df_out.to_string(index=False))
-print(f"\nCapture-curve AUC: {auc_out:.3f}")
-
-print("\nSaved:")
-print("outputs/figures/cumulative_flood_capture.png")
-print("outputs/tables/overall_capture_curve.csv")
-print("outputs/tables/historical_nonoverlap_capture_curve.csv")
+print("Done.")

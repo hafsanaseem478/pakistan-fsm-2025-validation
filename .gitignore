@@ -1,23 +1,25 @@
-# Large/raw data
+# Data
 data/raw/
 data/interim/
 data/processed/
 
-# Raster/vector datasets
+# Large geospatial files
 *.tif
 *.tiff
 *.zip
+*.gdb
 *.shp
 *.dbf
 *.shx
 *.prj
+*.cpg
 
 # Python
 __pycache__/
 *.pyc
-.venv/
 venv/
+.venv/
 
-# QGIS temporary/project backups
+# QGIS backups
 *.qgz~
 *.qgs~
